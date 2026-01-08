@@ -14,7 +14,7 @@ export function generateCalendarGrid(
   birthDate: Date,
   viewMode: ViewMode,
   events: LifeEvent[],
-  yearsToRender: number = 100
+  yearsToRender: number = 90
 ): CalendarCell[] {
   const config = VIEW_MODES[viewMode];
   const totalUnits = Math.ceil((yearsToRender * 365.25) / config.unitDays);

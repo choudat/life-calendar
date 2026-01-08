@@ -1,15 +1,15 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { ViewMode, CalendarCell, LifeEvent } from "@/types/calendar";
-import { MOCK_BIRTHDATE } from "@/lib/mock-data";
 import { generateCalendarGrid, VIEW_MODES } from "@/lib/calendar-logic";
 import { cn } from "@/lib/utils";
 import { Info, Calendar as CalendarIcon, Pencil, Trash2, Plus, Eye, EyeOff, Settings } from "lucide-react";
 import { CalendarSelector } from "@/components/calendar/calendar-selector";
 import { ViewSelector } from "@/components/calendar/view-selector";
-import { CalendarGrid } from "@/components/calendar/calendar-grid";
-import { Dialog } from "@/components/ui/dialog-simple";
+import { CalendarGrid } from "@/components/calendar/calendar-grid-virtualized";
+// import { Dialog } from "@/components/ui/dialog-simple"; // Removed in favor of responsive component or reused inside it if needed
+import { WeekDetailDialog } from "@/components/calendar/week-detail-dialog"; // New component
 import { SettingsDialog } from "@/components/settings/settings-dialog";
 import { Button } from "@/components/ui/button";
 import { EventForm } from "@/components/events/event-form";
@@ -18,19 +18,58 @@ import { EventCard } from "@/components/events/event-card";
 import { format } from "date-fns";
 import { fr } from "date-fns/locale";
 import { useEvents } from "@/context/EventsContext";
-import Link from "next/link";
+import { BirthDateInput } from "@/components/onboarding/birth-date-input";
 
 type DashboardViewMode = ViewMode | 'list';
 
 export default function Dashboard() {
-  const { 
+  const {
     events, calendars, addEvent, updateEvent, deleteEvent,
     isSettingsOpen, setIsSettingsOpen,
     isEventModalOpen, setIsEventModalOpen,
-    editingEvent, setEditingEvent
+    editingEvent, setEditingEvent,
+    birthDate, lifeExpectancy
   } = useEvents();
   const [viewMode, setViewMode] = useState<DashboardViewMode>('weeks');
-  const [visibleCalendars, setVisibleCalendars] = useState(calendars.filter(c => c.isVisible).map(c => c.id));
+  
+  // Initialize with all IDs, but this won't be enough for async updates
+  const [visibleCalendars, setVisibleCalendars] = useState<string[]>([]);
+  const prevCalendarsRef = useRef(calendars);
+  
+  // Sync visibleCalendars when calendars list changes
+  useEffect(() => {
+    // 1. Initial Load: If nothing selected, select all visible defaults
+    if (visibleCalendars.length === 0 && calendars.length > 0) {
+        setVisibleCalendars(calendars.filter(c => c.isVisible).map(c => c.id));
+    } else {
+        // 2. New Calendar Added: Auto-select it
+        const currentIds = calendars.map(c => c.id);
+        const prevIds = prevCalendarsRef.current.map(c => c.id);
+        const newIds = currentIds.filter(id => !prevIds.includes(id));
+        
+        if (newIds.length > 0) {
+            setVisibleCalendars(prev => Array.from(new Set([...prev, ...newIds])));
+        }
+        
+        // 3. Cleanup: Remove deleted calendars
+        // Only run this if we didn't just add new ones (to avoid conflict or double render, though React handles it)
+        // Actually safe to combine logic implies running filter on valid IDs
+        setVisibleCalendars(prev => {
+             // If we just added logic above, 'prev' here is stale? No, functional update queues it.
+             // Let's just do it in one pass if possible, but hard to combine with "Initial Load" state check.
+             // Simpler: Just ensure we filter invalid IDs.
+             const valid = prev.filter(id => currentIds.includes(id));
+             
+             // If we have new IDs, add them
+             if (newIds.length > 0) {
+                 return Array.from(new Set([...valid, ...newIds]));
+             }
+             return valid;
+        });
+    }
+    prevCalendarsRef.current = calendars;
+  }, [calendars]);
+
   const [breakpoint, setBreakpoint] = useState<'base' | 'sm' | 'lg' | 'xl'>('base');
 
   useEffect(() => {
@@ -67,28 +106,28 @@ export default function Dashboard() {
       if (breakpoint === 'lg') return '30 ans';
       return '40 ans';
     }
-    
+
     // Days views
     const unit = VIEW_MODES[viewMode].unitDays;
     let cols = 20;
     if (breakpoint === 'sm') cols = 40;
     if (breakpoint === 'lg') cols = 60;
     if (breakpoint === 'xl') cols = 100;
-    
+
     return `${(unit * cols).toLocaleString('fr-FR')} jours`;
   };
-  
+
   // Dialog & Editing State
   const [selectedCell, setSelectedCell] = useState<CalendarCell | null>(null);
   const [showHiddenEventsInDialog, setShowHiddenEventsInDialog] = useState(false);
 
-  const filteredEvents = events.filter(e => visibleCalendars.includes(e.calendarId));
-  
-  // Only generate grid if not in list mode
-  const gridCells = viewMode === 'list' 
-    ? [] 
-    : generateCalendarGrid(MOCK_BIRTHDATE, viewMode as ViewMode, filteredEvents);
-    
+  // Memoize grid generation - only recalculate when events or viewMode change
+  // Filtering is now done at render time for better performance
+  const gridCells = useMemo(() => {
+    if (viewMode === 'list') return [];
+    return generateCalendarGrid(birthDate, viewMode as ViewMode, events, lifeExpectancy);
+  }, [viewMode, events, birthDate, lifeExpectancy]);
+
   const config = viewMode === 'list' ? VIEW_MODES['weeks'] : VIEW_MODES[viewMode as ViewMode];
 
   // Handlers
@@ -137,51 +176,51 @@ export default function Dashboard() {
   };
 
   // Derive events for the currently selected cell to ensure reactivity
-  const selectedCellEvents = selectedCell 
+  const selectedCellEvents = selectedCell
     ? events.filter(e => {
-        // Filter by visibility unless "Show All" is active
-        if (!showHiddenEventsInDialog && !visibleCalendars.includes(e.calendarId)) {
-          return false;
-        }
+      // Filter by visibility unless "Show All" is active
+      if (!showHiddenEventsInDialog && !visibleCalendars.includes(e.calendarId)) {
+        return false;
+      }
 
-        const cellStart = selectedCell.date;
-        const cellEnd = selectedCell.endDate;
-        
-        const eventStart = new Date(e.startDate);
-        const eventEnd = e.endDate ? new Date(e.endDate) : eventStart;
-        
-        // Check for overlap: Event Start <= Cell End AND Cell Start <= Event End
-        return eventStart <= cellEnd && cellStart <= eventEnd;
-      })
+      const cellStart = selectedCell.date;
+      const cellEnd = selectedCell.endDate;
+
+      const eventStart = new Date(e.startDate);
+      const eventEnd = e.endDate ? new Date(e.endDate) : eventStart;
+
+      // Check for overlap: Event Start <= Cell End AND Cell Start <= Event End
+      return eventStart <= cellEnd && cellStart <= eventEnd;
+    })
     : [];
 
-  const hasHiddenEvents = selectedCell 
+  const hasHiddenEvents = selectedCell
     ? events.some(e => {
-        if (visibleCalendars.includes(e.calendarId)) return false;
-        
-        const cellStart = selectedCell.date;
-        const cellEnd = selectedCell.endDate;
-        const eventStart = new Date(e.startDate);
-        const eventEnd = e.endDate ? new Date(e.endDate) : eventStart;
-        
-        return eventStart <= cellEnd && cellStart <= eventEnd;
-      })
+      if (visibleCalendars.includes(e.calendarId)) return false;
+
+      const cellStart = selectedCell.date;
+      const cellEnd = selectedCell.endDate;
+      const eventStart = new Date(e.startDate);
+      const eventEnd = e.endDate ? new Date(e.endDate) : eventStart;
+
+      return eventStart <= cellEnd && cellStart <= eventEnd;
+    })
     : false;
 
   return (
     <div className="space-y-6">
       {/* Controls Bar */}
       <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-4 rounded-xl shadow-sm border border-slate-100">
-        
+
         {/* View Mode Selector */}
         <div className="w-full md:w-auto">
-          <ViewSelector 
-            value={viewMode} 
+          <ViewSelector
+            value={viewMode}
             onChange={setViewMode}
           />
         </div>
-  <div className="flex items-center gap-2 flex-wrap justify-end">
-          <CalendarSelector 
+        <div className="flex items-center gap-2 flex-wrap justify-end">
+          <CalendarSelector
             calendars={calendars}
             selectedIds={visibleCalendars}
             onChange={setVisibleCalendars}
@@ -191,21 +230,22 @@ export default function Dashboard() {
 
       {/* Content Area */}
       {viewMode === 'list' ? (
-        <EventsList 
-          visibleCalendars={visibleCalendars} 
+        <EventsList
+          visibleCalendars={visibleCalendars}
           onVisibleCalendarsChange={setVisibleCalendars}
           showFilters={false}
         />
       ) : (
         /* Calendar Grid */
-        <CalendarGrid 
+        <CalendarGrid
           cells={gridCells}
           viewMode={viewMode as ViewMode}
           calendars={calendars}
+          visibleCalendars={visibleCalendars}
           onCellClick={handleCellClick}
         />
       )}
-      
+
       {viewMode !== 'list' && (
         <div className="flex flex-col md:flex-row items-center gap-2 text-sm text-slate-500 justify-center text-center">
           <div className="flex items-center gap-2">
@@ -219,104 +259,35 @@ export default function Dashboard() {
         </div>
       )}
 
-      {/* Cell Details Dialog */}
-      <Dialog 
-        isOpen={!!selectedCell || isEventModalOpen} 
-        onClose={handleCloseDialog}
-        title={
-          isEventModalOpen 
-            ? (editingEvent?.id ? "Modifier l'événement" : "Nouvel événement")
-            : (selectedCell ? `Détails du ${format(selectedCell.date, 'd MMMM yyyy', { locale: fr })} au ${format(selectedCell.endDate, 'd MMMM yyyy', { locale: fr })}` : "")
-        }
-      >
-        {!isEventModalOpen && selectedCell ? (
-          <div className="space-y-4">
-              <>
-                <div className="flex items-center gap-2 text-sm text-slate-500">
-                  <CalendarIcon className="w-4 h-4" />
-                  <span>Age : {selectedCell.age} ans</span>
-                </div>
-
-                <div className="space-y-2">
-                  <div className="flex items-center justify-between">
-                    <h3 className="font-medium text-slate-900">Événements</h3>
-                    {hasHiddenEvents && (
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => setShowHiddenEventsInDialog(!showHiddenEventsInDialog)}
-                        className="h-6 text-xs text-slate-500 hover:text-indigo-600"
-                      >
-                        {showHiddenEventsInDialog ? (
-                          <>
-                            <EyeOff className="w-3 h-3 mr-1" />
-                            Masquer les autres
-                          </>
-                        ) : (
-                          <>
-                            <Eye className="w-3 h-3 mr-1" />
-                            Voir tout
-                          </>
-                        )}
-                      </Button>
-                    )}
-                  </div>
-                  
-                  {selectedCellEvents.length > 0 ? (
-                    <div className="space-y-2">
-                      {selectedCellEvents.map((event) => {
-                        const calendar = calendars.find(c => c.id === event.calendarId);
-                        const isVisible = visibleCalendars.includes(event.calendarId);
-                        
-                        return (
-                          <EventCard
-                            key={event.id}
-                            event={event}
-                            calendar={calendar}
-                            isVisible={isVisible}
-                            onEdit={handleEditEvent}
-                            onDelete={handleDeleteEvent}
-                          />
-                        );
-                      })}
-                    </div>
-                  ) : (
-                    <p className="text-sm text-slate-500 italic">Aucun événement visible pour cette période.</p>
-                  )}
-                </div>
-                
-                <div className="pt-4 border-t border-slate-100">
-                   <Button 
-                     className="w-full"
-                     onClick={handleCreateEvent}
-                   >
-                     <Plus className="w-4 h-4 mr-2" />
-                     Ajouter un événement
-                   </Button>
-                </div>
-              </>
-          </div>
-        ) : (
-          <EventForm
-            initialData={editingEvent || {}}
-            calendars={calendars}
-            onSubmit={handleSaveEvent}
-            onCancel={() => {
+      {/* Cell Details Dialog / Drawer */}
+      <WeekDetailDialog
+          isOpen={!!selectedCell || isEventModalOpen}
+          onClose={handleCloseDialog}
+          cell={selectedCell}
+          events={selectedCellEvents}
+          calendars={calendars}
+          visibleCalendars={visibleCalendars}
+          onVisibleCalendarsChange={setVisibleCalendars} // Optional, if we want to toggle inside modal
+          onEditEvent={handleEditEvent}
+          onDeleteEvent={handleDeleteEvent}
+          onCreateEvent={handleCreateEvent}
+          isEditing={isEventModalOpen}
+          editingEvent={editingEvent}
+          onSaveEvent={handleSaveEvent}
+          onCancelEdit={() => {
               if (selectedCell) {
-                setIsEventModalOpen(false);
-                setEditingEvent(null);
+                  setIsEventModalOpen(false);
+                  setEditingEvent(null);
+                  // Keep cell selected so we go back to read mode
               } else {
-                handleCloseDialog();
+                  handleCloseDialog();
               }
-            }}
-            submitLabel={editingEvent?.id ? "Mettre à jour" : "Créer"}
-          />
-        )}
-      </Dialog>
+          }}
+      />
 
-      <SettingsDialog 
-        isOpen={isSettingsOpen} 
-        onClose={() => setIsSettingsOpen(false)} 
+      <SettingsDialog
+        isOpen={isSettingsOpen}
+        onClose={() => setIsSettingsOpen(false)}
       />
     </div>
   );

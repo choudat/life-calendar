@@ -3,11 +3,11 @@ import { CalendarCategory, LifeEvent } from "@/types/calendar";
 export const MOCK_BIRTHDATE = new Date("1907-01-15");
 
 export const MOCK_CALENDARS: CalendarCategory[] = [
-  { id: "family", title: "Famille", color: "bg-blue-500", isVisible: true },
-  { id: "career", title: "Carrière & Études", color: "bg-indigo-600", isVisible: true },
-  { id: "history", title: "Histoire", color: "bg-red-500", isVisible: true },
-  { id: "projects", title: "Grands Projets", color: "bg-amber-600", isVisible: true },
-  { id: "travel", title: "Voyages", color: "bg-emerald-500", isVisible: true },
+  { id: "family", title: "Famille", color: "bg-sky-200", isVisible: true },
+  { id: "career", title: "Carrière & Études", color: "bg-indigo-200", isVisible: true },
+  { id: "history", title: "Histoire", color: "bg-rose-200", isVisible: true },
+  { id: "projects", title: "Grands Projets", color: "bg-amber-100", isVisible: true },
+  { id: "travel", title: "Voyages", color: "bg-emerald-200", isVisible: true },
 ];
 
 export const MOCK_EVENTS: LifeEvent[] = [

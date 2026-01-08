@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { CalendarCategory } from "@/types/calendar";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
-import { Eye, EyeOff, Settings, Plus, Pencil, Trash2 } from "lucide-react";
+import { Eye, EyeOff, Settings, Plus, Pencil, Trash2, ArrowUp, ArrowDown } from "lucide-react";
 import { Dialog } from "@/components/ui/dialog-simple";
 import { CalendarForm } from "./calendar-form";
 import { useEvents } from "@/context/EventsContext";
@@ -15,7 +15,7 @@ interface CalendarSelectorProps {
 }
 
 export function CalendarSelector({ calendars, selectedIds, onChange, className }: CalendarSelectorProps) {
-  const { addCalendar, updateCalendar, deleteCalendar } = useEvents();
+  const { addCalendar, updateCalendar, deleteCalendar, reorderCalendars } = useEvents();
   const [isManageOpen, setIsManageOpen] = useState(false);
   const [editingCalendar, setEditingCalendar] = useState<CalendarCategory | null>(null);
   const [isCreating, setIsCreating] = useState(false);
@@ -26,7 +26,7 @@ export function CalendarSelector({ calendars, selectedIds, onChange, className }
 
   const handleSelectAll = () => onChange(allIds);
   const handleSelectNone = () => onChange([]);
-  
+
   const toggleCalendar = (id: string, e: React.MouseEvent) => {
     // UX Expert Tip: Alt+Click to isolate a category (show only this one)
     if (e.altKey) {
@@ -58,6 +58,20 @@ export function CalendarSelector({ calendars, selectedIds, onChange, className }
       deleteCalendar(id);
       onChange(selectedIds.filter(cid => cid !== id));
     }
+  };
+
+  const handleMoveCalendar = (id: string, direction: 'up' | 'down') => {
+    const index = calendars.findIndex(c => c.id === id);
+    if (index === -1) return;
+
+    if (direction === 'up' && index === 0) return;
+    if (direction === 'down' && index === calendars.length - 1) return;
+
+    const newIds = calendars.map(c => c.id);
+    const targetIndex = direction === 'up' ? index - 1 : index + 1;
+    [newIds[index], newIds[targetIndex]] = [newIds[targetIndex], newIds[index]];
+
+    reorderCalendars(newIds);
   };
 
   return (
@@ -96,9 +110,9 @@ export function CalendarSelector({ calendars, selectedIds, onChange, className }
             <Settings className="w-4 h-4" />
           </Button>
         </div>
-        
+
         <div className="w-px h-6 bg-slate-200 mx-1 hidden md:block" />
-        
+
         {calendars.map(cal => {
           const isSelected = selectedIds.includes(cal.id);
           return (
@@ -109,13 +123,14 @@ export function CalendarSelector({ calendars, selectedIds, onChange, className }
               onClick={(e) => toggleCalendar(cal.id, e)}
               title="Alt + Clic pour afficher uniquement ce calendrier"
               className={cn(
-                "whitespace-nowrap gap-2 transition-all",
-                !isSelected && "opacity-60 hover:opacity-100 bg-slate-50 border-slate-200 border-dashed"
+                "whitespace-nowrap gap-2 transition-all rounded-full px-4 h-8 border-none shadow-sm",
+                isSelected
+                  ? cn(cal.color, "hover:opacity-90")
+                  : "bg-white text-slate-600 hover:bg-slate-50 hover:shadow-md"
               )}
             >
-              <span 
-                className={cn("w-2 h-2 rounded-full transition-colors", cal.color)} 
-                style={{ backgroundColor: isSelected ? 'white' : undefined }} 
+              <span
+                className={cn("w-2 h-2 rounded-full transition-colors", isSelected ? "bg-white" : cal.color)}
               />
               {cal.title}
             </Button>
@@ -155,6 +170,25 @@ export function CalendarSelector({ calendars, selectedIds, onChange, className }
                     <Button
                       variant="ghost"
                       size="icon"
+                      className="h-8 w-8 text-slate-400 hover:text-indigo-600 disabled:opacity-20"
+                      onClick={() => handleMoveCalendar(cal.id, 'up')}
+                      disabled={calendars.indexOf(cal) === 0}
+                    >
+                      <ArrowUp className="w-4 h-4" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      className="h-8 w-8 text-slate-400 hover:text-indigo-600 disabled:opacity-20"
+                      onClick={() => handleMoveCalendar(cal.id, 'down')}
+                      disabled={calendars.indexOf(cal) === calendars.length - 1}
+                    >
+                      <ArrowDown className="w-4 h-4" />
+                    </Button>
+                    <div className="w-px h-4 bg-slate-100 mx-1" />
+                    <Button
+                      variant="ghost"
+                      size="icon"
                       className="h-8 w-8 text-slate-400 hover:text-indigo-600"
                       onClick={() => setEditingCalendar(cal)}
                     >
@@ -172,9 +206,9 @@ export function CalendarSelector({ calendars, selectedIds, onChange, className }
                 </div>
               ))}
             </div>
-            
-            <Button 
-              className="w-full" 
+
+            <Button
+              className="w-full"
               onClick={() => setIsCreating(true)}
             >
               <Plus className="w-4 h-4 mr-2" />

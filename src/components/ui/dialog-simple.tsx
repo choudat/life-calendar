@@ -29,14 +29,19 @@ export function Dialog({ isOpen, onClose, title, children }: DialogProps) {
   if (!isOpen) return null;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4">
-      <div 
+    <div
+      className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm p-4"
+      onClick={(e) => {
+        if (e.target === e.currentTarget) onClose();
+      }}
+    >
+      <div
         ref={dialogRef}
         className="bg-white dark:bg-slate-900 rounded-lg shadow-xl w-full max-w-md overflow-hidden border border-slate-200 dark:border-slate-800"
       >
         <div className="flex items-center justify-between p-4 border-b border-slate-200 dark:border-slate-800">
           <h2 className="text-lg font-semibold">{title}</h2>
-          <button 
+          <button
             onClick={onClose}
             className="p-1 hover:bg-slate-100 dark:hover:bg-slate-800 rounded-full transition-colors"
           >
