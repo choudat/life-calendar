@@ -12,23 +12,23 @@ interface ViewSelectorProps {
 }
 
 export function ViewSelector({ value, onChange }: ViewSelectorProps) {
-  
+
   const renderButton = (mode: DashboardViewMode, label: string, icon: React.ReactNode) => {
     const isSelected = value === mode;
     return (
       <button
         onClick={() => onChange(mode)}
         className={cn(
-          "flex items-center gap-2 px-3 py-1.5 text-sm font-medium rounded-md transition-all flex-1 justify-center sm:flex-none sm:justify-start",
-          isSelected 
-            ? "bg-indigo-600 text-white shadow-sm" 
-            : "text-slate-600 hover:bg-slate-200/50 hover:text-slate-900"
+          "flex items-center gap-2 px-3 py-1.5 text-sm font-semibold rounded-xl transition-all flex-1 justify-center sm:flex-none sm:justify-start",
+          isSelected
+            ? "bg-indigo-500 text-white shadow-md scale-[1.02]"
+            : "text-slate-500 hover:bg-white hover:shadow-sm hover:text-slate-800"
         )}
         title={label}
       >
         <span className={cn(
-          "flex items-center justify-center w-5 h-5 rounded text-[10px] font-bold shrink-0",
-          isSelected ? "bg-white/20 text-white" : "bg-slate-200 text-slate-600"
+          "flex items-center justify-center w-5 h-5 rounded-lg text-[10px] font-bold shrink-0",
+          isSelected ? "bg-white/30 text-white" : "bg-slate-200 text-slate-500"
         )}>
           {icon}
         </span>

@@ -4,6 +4,7 @@ import Link from "next/link";
 import { Calendar, Settings, Plus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { useEvents } from "@/context/EventsContext";
+import { UserButton, SignedIn, SignedOut, SignInButton } from "@clerk/nextjs";
 
 export function AppHeader() {
   const { setIsSettingsOpen, setIsEventModalOpen, setEditingEvent, calendars } = useEvents();
@@ -46,8 +47,15 @@ export function AppHeader() {
             <span className="hidden sm:inline">Ajouter</span>
           </Button>
 
-          <div className="w-8 h-8 bg-indigo-100 rounded-full flex items-center justify-center text-indigo-700 font-bold text-xs ml-2">
-            FC
+          <div className="ml-2 flex items-center">
+             <SignedIn>
+                <UserButton />
+             </SignedIn>
+             <SignedOut>
+                <SignInButton mode="modal">
+                    <Button variant="outline" size="sm">Connexion</Button>
+                </SignInButton>
+             </SignedOut>
           </div>
         </div>
       </div>

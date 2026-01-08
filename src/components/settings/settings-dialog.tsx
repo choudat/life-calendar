@@ -3,7 +3,8 @@ import { Dialog } from "@/components/ui/dialog-simple";
 import { Button } from "@/components/ui/button";
 import { useEvents } from "@/context/EventsContext";
 import { exportEventsToCSV, parseCSVToEvents } from "@/lib/csv-utils";
-import { Download, Upload, Trash2, Database } from "lucide-react";
+import { Download, Upload, Trash2, Database, User } from "lucide-react";
+import { BirthDateInput } from "@/components/onboarding/birth-date-input";
 
 interface SettingsDialogProps {
   isOpen: boolean;
@@ -66,7 +67,25 @@ export function SettingsDialog({ isOpen, onClose }: SettingsDialogProps) {
   return (
     <Dialog isOpen={isOpen} onClose={onClose} title="Paramètres">
       <div className="space-y-6 py-4">
+        
+        {/* Profile Settings */}
         <div className="space-y-4">
+            <h3 className="text-sm font-medium text-slate-900">Profil</h3>
+             <div className="p-4 border border-slate-200 rounded-lg bg-slate-50 space-y-3">
+               <div className="flex items-center gap-3 mb-2">
+                 <div className="p-2 bg-white rounded-md border border-slate-200">
+                    <User className="w-5 h-5 text-indigo-600" />
+                 </div>
+                 <div>
+                    <h4 className="font-medium text-slate-900">Paramètres de vie</h4>
+                    <p className="text-xs text-slate-500">Date de naissance et espérance de vie</p>
+                 </div>
+               </div>
+               <BirthDateInput variant="settings" />
+             </div>
+        </div>
+
+        <div className="space-y-4 pt-4 border-t border-slate-100">
           <h3 className="text-sm font-medium text-slate-900">Gestion des données</h3>
           
           <div className="grid grid-cols-1 gap-4">

@@ -1,9 +1,32 @@
-import React, { useState, useEffect } from 'react';
+"use client";
+
+import React, { useEffect } from 'react';
+import { useForm } from 'react-hook-form';
+import { zodResolver } from '@hookform/resolvers/zod';
+import * as z from 'zod';
 import { LifeEvent, CalendarCategory } from '@/types/calendar';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Select } from '@/components/ui/select';
+import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
+import { cn, parseLocalDate } from '@/lib/utils';
+
+const formSchema = z.object({
+  id: z.string().optional(),
+  title: z.string().min(1, "Le titre est requis").max(50, "Le titre ne doit pas dépasser 50 caractères"),
+  calendarId: z.string().min(1, "La catégorie est requise"),
+  startDate: z.string().refine((val) => !isNaN(Date.parse(val)), {
+    message: "Date de début invalide",
+  }),
+  endDate: z.string().optional().refine((val) => !val || !isNaN(Date.parse(val)), {
+    message: "Date de fin invalide",
+  }),
+  description: z.string().optional(),
+  icon: z.string().max(2, "L'icône ne doit pas dépasser 2 caractères").optional(),
+});
+
+type FormValues = z.infer<typeof formSchema>;
 
 interface EventFormProps {
   initialData?: Partial<LifeEvent>;
@@ -20,105 +43,122 @@ export function EventForm({
   onCancel,
   submitLabel = "Enregistrer"
 }: EventFormProps) {
-  const [formData, setFormData] = useState<Partial<LifeEvent>>({
-    title: "",
-    calendarId: calendars[0]?.id || "default",
-    startDate: new Date(),
-    icon: "",
-    description: "",
-    ...initialData
+  const {
+    register,
+    handleSubmit,
+    watch,
+    reset,
+    formState: { errors },
+  } = useForm<FormValues>({
+    resolver: zodResolver(formSchema),
+    defaultValues: {
+      title: initialData?.title || "",
+      calendarId: initialData?.calendarId || calendars[0]?.id || "",
+      description: initialData?.description || "",
+      icon: initialData?.icon || "",
+      id: initialData?.id,
+      startDate: initialData?.startDate ? format(new Date(initialData.startDate), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+      endDate: initialData?.endDate ? format(new Date(initialData.endDate), 'yyyy-MM-dd') : "",
+    },
   });
 
-  // Update form data if initialData changes (e.g. when switching between add/edit in same dialog)
+  const selectedCalendarId = watch("calendarId");
+  const selectedCalendar = calendars.find(c => c.id === selectedCalendarId);
+
   useEffect(() => {
     if (initialData) {
-      setFormData(prev => ({ ...prev, ...initialData }));
+        reset({
+            id: initialData.id,
+            title: initialData.title || "",
+            calendarId: initialData.calendarId || calendars[0]?.id || "",
+            startDate: initialData.startDate ? format(new Date(initialData.startDate), 'yyyy-MM-dd') : format(new Date(), 'yyyy-MM-dd'),
+            endDate: initialData.endDate ? format(new Date(initialData.endDate), 'yyyy-MM-dd') : "",
+            description: initialData.description || "",
+            icon: initialData.icon || ""
+        });
     }
-  }, [initialData]);
+  }, [initialData, reset, calendars]);
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    
-    if (!formData.title || !formData.calendarId || !formData.startDate) return;
-
+  const onFormSubmit = (data: FormValues) => {
     const eventData: LifeEvent = {
-      id: formData.id || crypto.randomUUID(),
-      title: formData.title,
-      calendarId: formData.calendarId,
-      startDate: formData.startDate instanceof Date ? formData.startDate : new Date(formData.startDate!),
-      endDate: formData.endDate ? (formData.endDate instanceof Date ? formData.endDate : new Date(formData.endDate)) : undefined,
-      icon: formData.icon,
-      description: formData.description
+      id: data.id || crypto.randomUUID(),
+      title: data.title,
+      calendarId: data.calendarId,
+      // Parse dates as local midnight to avoid timezone shifts
+      startDate: parseLocalDate(data.startDate),
+      endDate: data.endDate ? parseLocalDate(data.endDate) : undefined,
+      description: data.description,
+      icon: data.icon,
     };
-
     onSubmit(eventData);
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">Titre</label>
+        <label className="block text-sm font-medium text-slate-700 mb-1 font-serif">Titre</label>
         <Input
-          type="text"
-          required
-          value={formData.title}
-          onChange={e => setFormData({...formData, title: e.target.value})}
+          {...register("title")}
           placeholder="Ex: Nouveau job"
+          className={cn(errors.title && "border-red-500", "font-serif")}
         />
+        {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title.message}</p>}
       </div>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Date de début</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1 font-serif">Date de début</label>
           <Input
             type="date"
-            required
-            value={formData.startDate ? format(new Date(formData.startDate), 'yyyy-MM-dd') : ''}
-            onChange={e => setFormData({...formData, startDate: new Date(e.target.value)})}
+            {...register("startDate")}
+            className={cn(errors.startDate && "border-red-500")}
           />
+           {errors.startDate && <p className="text-xs text-red-500 mt-1">{errors.startDate.message}</p>}
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Date de fin (optionnel)</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1 font-serif">Date de fin (optionnel)</label>
           <Input
             type="date"
-            value={formData.endDate ? format(new Date(formData.endDate), 'yyyy-MM-dd') : ''}
-            onChange={e => setFormData({...formData, endDate: e.target.value ? new Date(e.target.value) : undefined})}
+            {...register("endDate")}
           />
         </div>
       </div>
 
       <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1">Calendrier</label>
-        <Select
-          value={formData.calendarId}
-          onChange={e => setFormData({...formData, calendarId: e.target.value})}
-        >
-          {calendars.map(cal => (
-            <option key={cal.id} value={cal.id}>{cal.title}</option>
-          ))}
-        </Select>
+        <label className="block text-sm font-medium text-slate-700 mb-1 font-serif">Calendrier</label>
+        <div className="flex items-center gap-2">
+            {selectedCalendar && (
+                <div className={cn("w-4 h-4 rounded-full border border-black/10 shrink-0", selectedCalendar.color)} />
+            )}
+            <Select
+              {...register("calendarId")}
+              className="flex-1"
+            >
+              {calendars.map(cal => (
+                <option key={cal.id} value={cal.id}>{cal.title}</option>
+              ))}
+            </Select>
+        </div>
+        {errors.calendarId && <p className="text-xs text-red-500 mt-1">{errors.calendarId.message}</p>}
       </div>
 
       <div className="grid grid-cols-[auto_1fr] gap-4">
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Icône</label>
+          <label className="block text-sm font-medium text-slate-700 mb-1 font-serif">Icône</label>
           <Input
-            type="text"
-            maxLength={2}
-            value={formData.icon}
-            onChange={e => setFormData({...formData, icon: e.target.value})}
-            className="w-16 text-center"
+            {...register("icon")}
+            className="w-16 text-center text-xl"
             placeholder="👶"
+            maxLength={2}
           />
         </div>
         <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1">Description</label>
-          <Input
-            type="text"
-            value={formData.description}
-            onChange={e => setFormData({...formData, description: e.target.value})}
-            placeholder="Détails supplémentaires..."
-          />
+          <label className="block text-sm font-medium text-slate-700 mb-1 font-serif">Description</label>
+           <Textarea 
+             {...register("description")}
+             placeholder="Détails supplémentaires..."
+             className="min-h-[80px]"
+           />
         </div>
       </div>
 

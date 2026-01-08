@@ -17,18 +17,24 @@ export const metadata: Metadata = {
   description: "Une perspective unique sur votre temps. Marquez vos événements marquants, suivez vos périodes de vie.",
 };
 
+import { ClerkProvider } from "@clerk/nextjs";
+import { frFR } from "@clerk/localizations";
+
+import RootStructure from "./RootStructure";
+
 export default function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
   return (
-    <html lang="fr">
-      <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+    <ClerkProvider localization={frFR}>
+      <RootStructure
+        lang="fr"
+        bodyClassName={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         {children}
-      </body>
-    </html>
+      </RootStructure>
+    </ClerkProvider>
   );
 }

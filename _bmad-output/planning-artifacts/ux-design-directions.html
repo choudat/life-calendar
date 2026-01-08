@@ -1,0 +1,175 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Life Calendar - Design Directions</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Geist:wght@100..900&family=Lora:ital,wght@0,400..700;1,400..700&family=Geist+Mono:wght@100..900&display=swap" rel="stylesheet">
+    <style>
+        body { font-family: 'Geist', sans-serif; }
+        .font-serif { font-family: 'Lora', serif; }
+        .font-mono { font-family: 'Geist Mono', monospace; }
+        
+        /* Grid Texture for Direction 1 */
+        .grid-texture-academic {
+            background-image: linear-gradient(to right, #e7e5e4 1px, transparent 1px),
+                            linear-gradient(to bottom, #e7e5e4 1px, transparent 1px);
+            background-size: 20px 20px;
+        }
+    </style>
+</head>
+<body class="bg-stone-100 text-stone-900 p-8">
+
+    <header class="max-w-7xl mx-auto mb-12 text-center">
+        <h1 class="font-serif text-4xl font-semibold mb-4 text-stone-900">Life Calendar: Design Directions</h1>
+        <p class="text-stone-600 max-w-2xl mx-auto">Exploring three distinct interpretations of the "Archive Stone" foundation. Each direction leverages the same palette but alters density, hierarchy, and texture.</p>
+    </header>
+
+    <div class="max-w-7xl mx-auto grid grid-cols-1 lg:grid-cols-3 gap-8">
+
+        <!-- Direction 1: The Librarian -->
+        <article class="bg-white shadow-xl rounded-sm overflow-hidden border border-stone-200 flex flex-col h-[800px]">
+            <div class="p-6 bg-stone-50 border-b border-stone-200">
+                <h2 class="font-serif text-2xl font-bold text-stone-900 mb-1">The Librarian</h2>
+                <p class="text-xs font-mono uppercase tracking-widest text-stone-500">Academic • Structured • Dense</p>
+            </div>
+            
+            <div class="flex-1 overflow-y-auto p-8 bg-stone-50 scrollbar-hide relative">
+                 <!-- Header -->
+                <div class="border-b-2 border-stone-900 pb-4 mb-8">
+                    <h3 class="font-serif text-3xl text-stone-900">Lucas' Archive</h3>
+                    <div class="flex justify-between mt-2 font-mono text-xs text-stone-600">
+                        <span>DOB: 12.04.1992</span>
+                        <span>WEEKS LIVED: 1,742</span>
+                    </div>
+                </div>
+
+                <!-- The Grid (CSS Grid Gap-px) -->
+                <div class="bg-stone-300 gap-px grid grid-cols-[repeat(13,1fr)] border border-stone-300 p-px mb-8">
+                    <!-- Generating a sample grid -->
+                    <script>
+                        for(let i=0; i<104; i++) {
+                            let color = 'bg-white';
+                            if (i < 40) color = 'bg-stone-200'; // Past
+                            if (i === 42) color = 'bg-blue-900'; // Career
+                            if (i === 12) color = 'bg-red-800'; // Love
+                            document.write(`<div class="${color} aspect-square hover:bg-amber-100 transition-colors cursor-pointer"></div>`);
+                        }
+                    </script>
+                </div>
+
+                <!-- Journal Entry -->
+                <div class="border-l-4 border-stone-300 pl-4 py-1">
+                    <div class="font-mono text-xs text-stone-400 mb-1">Week 1,742 • Oct 14 2024</div>
+                    <p class="font-serif text-lg leading-relaxed text-stone-800">
+                        "Realized today that the silence in the house isn't empty, it's expectant. We are waiting for the next chapter."
+                    </p>
+                </div>
+            </div>
+
+            <div class="p-4 bg-stone-100 border-t border-stone-200 text-center">
+                <button class="w-full bg-stone-900 text-white font-mono text-sm py-3 hover:bg-stone-800 transition-colors">
+                    + LOG ENTRY
+                </button>
+            </div>
+        </article>
+
+
+        <!-- Direction 2: The Biographer -->
+        <article class="bg-[#fafaf9] shadow-xl rounded-lg overflow-hidden border border-stone-200 flex flex-col h-[800px]">
+             <div class="p-6 bg-[#f5f5f4] border-b border-stone-200">
+                <h2 class="font-serif text-2xl font-bold text-stone-900 mb-1">The Biographer</h2>
+                <p class="text-xs font-mono uppercase tracking-widest text-stone-500">Narrative • Warm • Fluid</p>
+            </div>
+
+            <div class="flex-1 overflow-y-auto px-6 py-8 relative">
+                
+                <!-- Narrative Header -->
+                <div class="mb-10 text-center">
+                    <h3 class="font-serif text-4xl text-stone-800 mb-2 italic">33 Years</h3>
+                    <p class="text-stone-500 font-sans text-sm">You have lived 41% of your expectancy.</p>
+                </div>
+
+                <!-- Soft Grid -->
+                <div class="grid grid-cols-[repeat(13,1fr)] gap-1 mb-10 mx-4">
+                     <script>
+                        for(let i=0; i<104; i++) {
+                            let color = 'bg-stone-200';
+                            let styles = 'rounded-sm opacity-50';
+                            
+                            if (i < 40) { color = 'bg-stone-400'; styles='rounded-sm opacity-100'; }
+                            if (i === 42) { color = 'bg-blue-900'; styles='rounded-sm shadow-sm scale-110 z-10'; } 
+                            if (i === 12) { color = 'bg-red-800'; styles='rounded-sm'; }
+
+                            document.write(`<div class="${color} ${styles} aspect-square transition-all duration-300 hover:scale-125 cursor-pointer"></div>`);
+                        }
+                    </script>
+                </div>
+
+                <!-- Cards -->
+                <div class="space-y-4">
+                    <div class="bg-white p-5 rounded-lg shadow-sm border border-stone-100">
+                        <div class="flex items-center gap-2 mb-2">
+                            <div class="w-2 h-2 rounded-full bg-blue-900"></div>
+                            <span class="text-xs font-bold text-stone-400 uppercase tracking-wide">Career</span>
+                        </div>
+                        <p class="font-sans text-stone-700">Promoted to Senior Architect. Felt less like an achievement and more like a relief.</p>
+                    </div>
+                </div>
+            </div>
+
+             <div class="p-6 relative">
+                <div class="absolute bottom-6 right-6">
+                    <button class="w-14 h-14 rounded-full bg-stone-900 text-white shadow-lg hover:scale-105 transition-transform flex items-center justify-center text-2xl pb-1">
+                        +
+                    </button>
+                </div>
+            </div>
+        </article>
+
+
+        <!-- Direction 3: The Essentialist -->
+        <article class="bg-white shadow-xl rounded-none overflow-hidden border border-stone-200 flex flex-col h-[800px]">
+             <div class="p-6 bg-white border-b border-stone-100">
+                <h2 class="font-serif text-2xl font-bold text-stone-900 mb-1">The Essentialist</h2>
+                <p class="text-xs font-mono uppercase tracking-widest text-stone-500">Swiss • Stark • Data-First</p>
+            </div>
+
+            <div class="flex-1 overflow-y-auto bg-white p-4">
+                
+                <!-- Data Header -->
+                <div class="flex justify-between items-end mb-6 border-b border-stone-900 pb-2">
+                    <h3 class="font-mono text-4xl font-bold tracking-tighter text-stone-900">1,742</h3>
+                    <span class="font-mono text-sm text-stone-500 mb-1">/ 4,160</span>
+                </div>
+
+                <!-- High Density Grid -->
+                <!-- Gapless block -->
+                <div class="flex flex-wrap content-start">
+                     <script>
+                        for(let i=0; i<300; i++) {
+                            let color = 'bg-stone-100';
+                            // Random scattering of filled weeks
+                            if (Math.random() > 0.6) color = 'bg-stone-800';
+                            if (Math.random() > 0.9) color = 'bg-red-700';
+                            if (Math.random() > 0.9) color = 'bg-teal-800';
+
+                            document.write(`<div class="${color} w-[6%] h-3 mb-px mr-px hover:bg-amber-400 cursor-pointer"></div>`);
+                        }
+                    </script>
+                </div>
+            </div>
+
+            <div class="p-0 border-t border-stone-100">
+                <div class="grid grid-cols-2 divide-x divide-stone-100">
+                    <button class="p-4 hover:bg-stone-50 font-mono text-xs text-center">FILTER: ALL</button>
+                    <button class="p-4 bg-stone-900 text-white font-mono text-xs text-center hover:bg-stone-800">ADD MEMORY</button>
+                </div>
+            </div>
+        </article>
+
+    </div>
+
+</body>
+</html>
