@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useRef } from "react";
 import { ViewMode, CalendarCell, LifeEvent } from "@/types/calendar";
 import { generateCalendarGrid, VIEW_MODES } from "@/lib/calendar-logic";
 import { cn } from "@/lib/utils";
@@ -31,7 +31,45 @@ export default function Dashboard() {
     birthDate, lifeExpectancy
   } = useEvents();
   const [viewMode, setViewMode] = useState<DashboardViewMode>('weeks');
-  const [visibleCalendars, setVisibleCalendars] = useState(calendars.filter(c => c.isVisible).map(c => c.id));
+  
+  // Initialize with all IDs, but this won't be enough for async updates
+  const [visibleCalendars, setVisibleCalendars] = useState<string[]>([]);
+  const prevCalendarsRef = useRef(calendars);
+  
+  // Sync visibleCalendars when calendars list changes
+  useEffect(() => {
+    // 1. Initial Load: If nothing selected, select all visible defaults
+    if (visibleCalendars.length === 0 && calendars.length > 0) {
+        setVisibleCalendars(calendars.filter(c => c.isVisible).map(c => c.id));
+    } else {
+        // 2. New Calendar Added: Auto-select it
+        const currentIds = calendars.map(c => c.id);
+        const prevIds = prevCalendarsRef.current.map(c => c.id);
+        const newIds = currentIds.filter(id => !prevIds.includes(id));
+        
+        if (newIds.length > 0) {
+            setVisibleCalendars(prev => Array.from(new Set([...prev, ...newIds])));
+        }
+        
+        // 3. Cleanup: Remove deleted calendars
+        // Only run this if we didn't just add new ones (to avoid conflict or double render, though React handles it)
+        // Actually safe to combine logic implies running filter on valid IDs
+        setVisibleCalendars(prev => {
+             // If we just added logic above, 'prev' here is stale? No, functional update queues it.
+             // Let's just do it in one pass if possible, but hard to combine with "Initial Load" state check.
+             // Simpler: Just ensure we filter invalid IDs.
+             const valid = prev.filter(id => currentIds.includes(id));
+             
+             // If we have new IDs, add them
+             if (newIds.length > 0) {
+                 return Array.from(new Set([...valid, ...newIds]));
+             }
+             return valid;
+        });
+    }
+    prevCalendarsRef.current = calendars;
+  }, [calendars]);
+
   const [breakpoint, setBreakpoint] = useState<'base' | 'sm' | 'lg' | 'xl'>('base');
 
   useEffect(() => {

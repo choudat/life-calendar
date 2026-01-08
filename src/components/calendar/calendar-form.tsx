@@ -3,6 +3,7 @@ import { CalendarCategory } from "@/types/calendar";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
+import { Tag, Palette } from "lucide-react";
 
 interface CalendarFormProps {
   initialData?: Partial<CalendarCategory>;
@@ -35,41 +36,49 @@ export function CalendarForm({ initialData, onSubmit, onCancel, submitLabel = "E
   };
 
   return (
-    <form onSubmit={handleSubmit} className="space-y-4">
+    <form onSubmit={handleSubmit} className="space-y-6">
       <div className="space-y-2">
-        <label className="text-sm font-medium">Nom du calendrier</label>
+        <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <Tag className="w-4 h-4 text-slate-500" />
+          Nom du calendrier
+        </label>
         <Input 
           value={title} 
           onChange={(e) => setTitle(e.target.value)} 
           placeholder="Ex: Travail, Santé..."
           required
           autoFocus
+          className="font-medium"
         />
       </div>
 
       <div className="space-y-2">
-        <label className="text-sm font-medium">Couleur</label>
-        <div className="flex flex-wrap gap-2">
+        <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <Palette className="w-4 h-4 text-slate-500" />
+          Couleur
+        </label>
+        <div className="flex flex-wrap gap-3 p-3 border border-slate-100 rounded-lg bg-slate-50/50">
           {COLORS.map((c) => (
             <button
               key={c}
               type="button"
               onClick={() => setColor(c)}
               className={cn(
-                "w-6 h-6 rounded-full transition-all",
+                "w-6 h-6 rounded-full transition-all shadow-sm border border-black/5",
                 c,
-                color === c ? "ring-2 ring-offset-2 ring-slate-900 scale-110" : "hover:scale-110"
+                color === c ? "ring-2 ring-offset-2 ring-slate-900 scale-110" : "hover:scale-110 hover:shadow-md"
               )}
+              title={c.replace('bg-', '')}
             />
           ))}
         </div>
       </div>
 
-      <div className="flex justify-end gap-2 pt-4">
-        <Button type="button" variant="ghost" onClick={onCancel}>
+      <div className="pt-4 flex justify-end gap-2 border-t border-slate-100 mt-6">
+        <Button type="button" variant="outline" onClick={onCancel}>
           Annuler
         </Button>
-        <Button type="submit">
+        <Button type="submit" className="bg-slate-900 text-white hover:bg-slate-800">
           {submitLabel}
         </Button>
       </div>

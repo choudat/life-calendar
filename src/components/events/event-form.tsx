@@ -11,6 +11,7 @@ import { Select } from '@/components/ui/select';
 import { Textarea } from '@/components/ui/textarea';
 import { format } from 'date-fns';
 import { cn, parseLocalDate } from '@/lib/utils';
+import { Calendar as CalendarIcon, Tag, Type, AlignLeft, Clock, Smile } from 'lucide-react';
 
 const formSchema = z.object({
   id: z.string().optional(),
@@ -23,7 +24,15 @@ const formSchema = z.object({
     message: "Date de fin invalide",
   }),
   description: z.string().optional(),
-  icon: z.string().max(2, "L'icône ne doit pas dépasser 2 caractères").optional(),
+  icon: z.string().max(10, "L'icône ne doit pas dépasser 10 caractères").optional(),
+}).refine((data) => {
+  if (data.endDate && data.startDate) {
+    return new Date(data.endDate) >= new Date(data.startDate);
+  }
+  return true;
+}, {
+  message: "La date de fin doit être après la date de début",
+  path: ["endDate"],
 });
 
 type FormValues = z.infer<typeof formSchema>;
@@ -48,7 +57,7 @@ export function EventForm({
     handleSubmit,
     watch,
     reset,
-    formState: { errors },
+    formState: { errors, isSubmitting },
   } = useForm<FormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
@@ -77,7 +86,8 @@ export function EventForm({
             icon: initialData.icon || ""
         });
     }
-  }, [initialData, reset, calendars]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [initialData, reset]);
 
   const onFormSubmit = (data: FormValues) => {
     const eventData: LifeEvent = {
@@ -94,86 +104,120 @@ export function EventForm({
   };
 
   return (
-    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1 font-serif">Titre</label>
+    <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-6">
+      
+      {/* Title Section */}
+      <div className="space-y-2">
+        <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <Type className="w-4 h-4 text-slate-500" />
+          Titre de l'événement
+        </label>
         <Input
           {...register("title")}
-          placeholder="Ex: Nouveau job"
-          className={cn(errors.title && "border-red-500", "font-serif")}
+          placeholder="Ex: Voyage au Japon, Nouveau Job..."
+          className={cn("text-lg font-medium placeholder:font-normal", errors.title && "border-red-500")}
         />
-        {errors.title && <p className="text-xs text-red-500 mt-1">{errors.title.message}</p>}
+        {errors.title && <p className="text-xs text-red-500 font-medium">{errors.title.message}</p>}
       </div>
 
+      {/* Dates Section */}
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1 font-serif">Date de début</label>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <CalendarIcon className="w-4 h-4 text-slate-500" />
+            Début
+          </label>
           <Input
             type="date"
             {...register("startDate")}
             className={cn(errors.startDate && "border-red-500")}
           />
-           {errors.startDate && <p className="text-xs text-red-500 mt-1">{errors.startDate.message}</p>}
+           {errors.startDate && <p className="text-xs text-red-500 font-medium">{errors.startDate.message}</p>}
         </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1 font-serif">Date de fin (optionnel)</label>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <Clock className="w-4 h-4 text-slate-500" />
+            Fin (optionnel)
+          </label>
           <Input
             type="date"
             {...register("endDate")}
+            className={cn(errors.endDate && "border-red-500")}
           />
+          {errors.endDate && <p className="text-xs text-red-500 font-medium">{errors.endDate.message}</p>}
         </div>
       </div>
 
-      <div>
-        <label className="block text-sm font-medium text-slate-700 mb-1 font-serif">Calendrier</label>
-        <div className="flex items-center gap-2">
-            {selectedCalendar && (
-                <div className={cn("w-4 h-4 rounded-full border border-black/10 shrink-0", selectedCalendar.color)} />
+      {/* Category Section with Icon Preview */}
+      <div className="space-y-2">
+        <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+          <Tag className="w-4 h-4 text-slate-500" />
+          Catégorie
+        </label>
+        <div className="relative">
+          <Select
+            {...register("calendarId")}
+            className="pl-10" // Make room for the dot
+          >
+            {calendars.map(cal => (
+              <option key={cal.id} value={cal.id}>{cal.title}</option>
+            ))}
+          </Select>
+          <div className="absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none">
+            {selectedCalendar ? (
+              <div className={cn("w-4 h-4 rounded-full border border-black/10 shadow-sm", selectedCalendar.color)} />
+            ) : (
+              <div className="w-4 h-4 rounded-full bg-slate-200" />
             )}
-            <Select
-              {...register("calendarId")}
-              className="flex-1"
-            >
-              {calendars.map(cal => (
-                <option key={cal.id} value={cal.id}>{cal.title}</option>
-              ))}
-            </Select>
+          </div>
         </div>
-        {errors.calendarId && <p className="text-xs text-red-500 mt-1">{errors.calendarId.message}</p>}
+        {errors.calendarId && <p className="text-xs text-red-500 font-medium">{errors.calendarId.message}</p>}
       </div>
 
-      <div className="grid grid-cols-[auto_1fr] gap-4">
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1 font-serif">Icône</label>
+      {/* Icon and Description */}
+      <div className="grid grid-cols-[auto_1fr] gap-4 items-start">
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <Smile className="w-4 h-4 text-slate-500" />
+            Icône
+          </label>
           <Input
             {...register("icon")}
-            className="w-16 text-center text-xl"
-            placeholder="👶"
+            className="w-[80px] text-center text-3xl h-[60px] p-0 flex items-center justify-center"
+            placeholder="✈️"
             maxLength={2}
           />
         </div>
-        <div>
-          <label className="block text-sm font-medium text-slate-700 mb-1 font-serif">Description</label>
+        <div className="space-y-2">
+          <label className="flex items-center gap-2 text-sm font-semibold text-slate-700">
+            <AlignLeft className="w-4 h-4 text-slate-500" />
+            Description
+          </label>
            <Textarea 
              {...register("description")}
-             placeholder="Détails supplémentaires..."
-             className="min-h-[80px]"
+             placeholder="Ajoutez des détails, notes ou souvenirs..."
+             className="min-h-[60px] resize-none h-[60px]"
            />
         </div>
       </div>
 
-      <div className="pt-4 flex justify-end gap-2">
+      {/* Footer / Actions */}
+      <div className="pt-6 flex justify-end gap-3 border-t border-slate-100 mt-6">
         <Button
           type="button"
-          variant="ghost"
+          variant="outline"
+          className="text-slate-600"
           onClick={onCancel}
+          disabled={isSubmitting}
         >
           Annuler
         </Button>
         <Button
           type="submit"
+          disabled={isSubmitting}
+          className="bg-slate-900 hover:bg-slate-800 text-white min-w-[120px]"
         >
-          {submitLabel}
+          {isSubmitting ? "Enregistrement..." : submitLabel}
         </Button>
       </div>
     </form>

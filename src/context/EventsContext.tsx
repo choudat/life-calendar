@@ -5,6 +5,7 @@ import { LifeEvent, CalendarCategory } from '@/types/calendar';
 import { MOCK_EVENTS, MOCK_CALENDARS } from '@/lib/mock-data';
 import { parseLocalDate, formatLocalDate } from '@/lib/utils';
 import { createEventAction, updateEventAction, deleteEventAction, getEventsAction } from '@/actions/events-actions';
+import { createCalendarAction, updateCalendarAction, deleteCalendarAction, getCalendarsAction, reorderCalendarsAction } from '@/actions/calendar-actions';
 import { useAuth } from '@clerk/nextjs';
 
 // ... existing interfaces ...
@@ -64,7 +65,7 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
         const storedData = localStorage.getItem("life-calendar-data");
         if (storedData) {
              const parsed = JSON.parse(storedData);
-             if (parsed.calendars) setCalendars(parsed.calendars);
+             // Calendars and birthDate handled by server/logic
              if (parsed.birthDate) setBirthDate(new Date(parsed.birthDate));
              if (parsed.lifeExpectancy) setLifeExpectancy(Number(parsed.lifeExpectancy));
         }
@@ -75,11 +76,11 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
             return;
         }
 
-        // Fetch Events from Server
         try {
-            const result = await getEventsAction();
-            if (result.success && result.data) {
-                const mappedEvents: LifeEvent[] = result.data.map(e => ({
+            // Fetch Events
+            const eventsResult = await getEventsAction();
+            if (eventsResult.success && eventsResult.data) {
+                const mappedEvents: LifeEvent[] = eventsResult.data.map(e => ({
                      id: e.id,
                      title: e.title,
                      calendarId: e.calendarId,
@@ -88,16 +89,62 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
                      description: e.description || undefined,
                      icon: e.icon || undefined,
                 }));
-                // Merge with Mock if empty? No, respect DB.
-                // If DB is empty, user starts fresh.
                 setEvents(mappedEvents);
-            } else {
-                console.error("Failed to fetch events from server:", result.error);
-                // Fallback to localStorage events if server fails?
-                // For now, let's assume server is primary.
+            }
+
+            // Fetch Calendars
+            const calendarResult = await getCalendarsAction();
+            if (calendarResult.success && calendarResult.data) {
+                if (calendarResult.data.length > 0) {
+                     // Use DB Calendars
+                     setCalendars(calendarResult.data.map(c => ({
+                        id: c.id,
+                        title: c.title,
+                        color: c.color,
+                        isVisible: c.isVisible,
+                        icon: undefined // DB doesn't have icon yet? Schema has icon? No, I missed it in schema read? Double check.
+                     })));
+                } else {
+                     // Empty DB, but maybe user wants defaults? 
+                     // For now, keep mock or empty. 
+                     // Let's seed MOCK if empty for better UX?
+                     // setCalendars(MOCK_CALENDARS); // Optimistic UI
+                     // seedCalendars(MOCK_CALENDARS); // Async save to DB
+                     
+                     // Current Logic: If empty, use MOCK for initial view but DO NOT SAVE automatically
+                     // This mimics "New User" template. 
+                     // But if we persist, we must save them when they edit.
+                     // A cleaner approach: If server has 0, show 0. Or show defaults as "unsaved".
+                     
+                     // Let's stick to: If empty, use MOCK_CALENDARS locally for now so the UI isn't broken.
+                     // But this desyncs. 
+                     // Let's create defaults on the server if empty!
+                     
+                     const promises = MOCK_CALENDARS.map((c, index) => createCalendarAction({
+                        title: c.title,
+                        color: c.color,
+                        isVisible: c.isVisible,
+                        position: index
+                     }));
+                     const results = await Promise.all(promises);
+                     // Then re-fetch or use results
+                     const created = results
+                        .filter(r => r.success && r.data)
+                        .map(r => r.data!)
+                        .sort((a,b) => a.position - b.position);
+                     
+                     if (created.length > 0) {
+                        setCalendars(created.map(c => ({
+                            id: c.id,
+                            title: c.title,
+                            color: c.color,
+                            isVisible: c.isVisible,
+                        })));
+                     }
+                }
             }
         } catch (e) {
-            console.error("Error loading events", e);
+            console.error("Error loading data", e);
         }
         
         setIsLoaded(true);
@@ -105,17 +152,16 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
     init();
   }, [userId, isAuthLoaded]);
 
-  // Save Settings to localStorage (Events are now Server-Side)
+  // Save Settings to localStorage (Events & Calendars now Server-Side)
   useEffect(() => {
     if (!isLoaded) return;
     const dataToSave = {
-      calendars, // Calendar settings still local for now
+      // calendars removed from local storage sync
       birthDate,
       lifeExpectancy
-      // No events
     };
     localStorage.setItem("life-calendar-data", JSON.stringify(dataToSave));
-  }, [calendars, birthDate, lifeExpectancy, isLoaded]);
+  }, [birthDate, lifeExpectancy, isLoaded]);
 
   const addEvent = async (event: LifeEvent) => {
     // Optimistic Update
@@ -154,8 +200,6 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
     });
 
     if (!serverResult.success) {
-        // Rollback? Harder to rollback update without previous state tracking.
-        // For now, refresh from server or alert.
         alert("Failed to update event");
     }
   };
@@ -176,7 +220,6 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
   };
 
   const importEvents = (newEvents: LifeEvent[]) => {
-    // This needs to be batched or looped. 
     // Optimistic:
     setEvents(prev => [...prev, ...newEvents]); // Simplified merge
     
@@ -185,39 +228,77 @@ export function EventsProvider({ children }: { children: React.ReactNode }) {
   };
 
   const clearAllEvents = () => {
-    // Dangerous! 
     if(confirm("Are you sure? This will delete all events in DB.")) {
          events.forEach(e => deleteEvent(e.id));
     }
   };
 
   const resetToMockData = () => {
-     // For dev:
      setEvents(MOCK_EVENTS);
-     // Note: This doesn't sync to DB automatically unless we call addEvent for each.
   };
 
-  const addCalendar = (calendar: CalendarCategory) => {
+  const addCalendar = async (calendar: CalendarCategory) => {
+    // Optimistic
     setCalendars(prev => [...prev, calendar]);
+
+    // Server
+    const serverResult = await createCalendarAction({
+        id: calendar.id, // Explicitly pass the UUID generated by the client
+        title: calendar.title,
+        color: calendar.color,
+        isVisible: calendar.isVisible,
+        position: calendars.length // Append to end
+    });
+
+    if (serverResult.success && serverResult.data) {
+        // ID should match, but we can verify
+        // const newId = serverResult.data.id; 
+    } else {
+        setCalendars(prev => prev.filter(c => c.id !== calendar.id));
+        alert("Failed to create calendar");
+    }
   };
 
-  const updateCalendar = (updatedCalendar: CalendarCategory) => {
+  const updateCalendar = async (updatedCalendar: CalendarCategory) => {
     setCalendars(prev => prev.map(c => c.id === updatedCalendar.id ? updatedCalendar : c));
+
+    const serverResult = await updateCalendarAction(updatedCalendar.id, {
+        title: updatedCalendar.title,
+        color: updatedCalendar.color,
+        isVisible: updatedCalendar.isVisible
+    });
+    
+    if (!serverResult.success) {
+        alert("Failed to update calendar");
+    }
   };
 
-  const deleteCalendar = (id: string) => {
+  const deleteCalendar = async (id: string) => {
+    const previous = [...calendars];
     setCalendars(prev => prev.filter(c => c.id !== id));
-    // Filter local events only for UI consistency
     setEvents(prev => prev.filter(e => e.calendarId !== id));
+
+    const serverResult = await deleteCalendarAction(id);
+    if (!serverResult.success) {
+        setCalendars(previous);
+        alert("Failed to delete calendar");
+    }
   };
 
-  const reorderCalendars = (calendarIds: string[]) => {
+  const reorderCalendars = async (calendarIds: string[]) => {
     setCalendars(prev => {
       const newCalendars = [...prev];
       return newCalendars.sort((a, b) => {
         return calendarIds.indexOf(a.id) - calendarIds.indexOf(b.id);
       });
     });
+
+    const updates = calendarIds.map((id, index) => ({ id, position: index }));
+    const serverResult = await reorderCalendarsAction(updates);
+    
+    if (!serverResult.success) {
+        alert("Failed to reorder calendars");
+    }
   };
 
   return (

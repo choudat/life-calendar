@@ -102,7 +102,7 @@ export function WeekDetailDialog({
              <div className="p-4 space-y-6">
                 <div className="flex items-center gap-2 text-sm text-slate-500 bg-slate-50 p-3 rounded-lg border border-slate-100">
                     <CalendarIcon className="w-4 h-4 text-indigo-500" />
-                    <span>Age lors de cette semaine : <span className="font-semibold text-slate-900">{cell.age} ans</span></span>
+                    <span>Age lors de cette semaine : <span className="font-semibold text-slate-900">{cell.age} an{cell.age > 1 ? 's' : ''}</span></span>
                 </div>
 
                 <div className="space-y-3">
